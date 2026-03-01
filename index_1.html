@@ -1,0 +1,2602 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frise Chronologique Interactive - Version 10 (Google Sheets)</title>
+    <meta name="description" content="Frise chronologique interactive avec chargement automatique depuis Google Sheets">
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --bg-elevated: #f5f5f5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #4a4a4a;
+            --text-muted: #8a8a8a;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --culturel: #ec4899;
+            --sportif: #10b981;
+            --politique: #ef4444;
+            --economique: #f59e0b;
+            --religieux: #8b5cf6;
+            --scientifique: #06b6d4;
+            --border: rgba(0, 0, 0, 0.08);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Crimson Pro', serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* ===== NAVIGATION ===== */
+        .main-nav {
+            background: var(--bg-secondary);
+            border-bottom: 2px solid var(--border);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-row {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .nav-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .nav-row.space-between {
+            justify-content: space-between;
+        }
+
+        .nav-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .nav-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-muted);
+            font-weight: 700;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-family: 'Crimson Pro', serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: var(--bg-primary);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            font-weight: 600;
+            box-shadow: var(--shadow-md);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.6rem 1rem 0.6rem 2.5rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-family: 'Crimson Pro', serif;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid transparent;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .filter-btn.active {
+            font-weight: 700;
+            box-shadow: var(--shadow-md);
+        }
+
+        .filter-btn[data-category="all"] { background: var(--accent); color: white; }
+        .filter-btn[data-category="all"].active { background: var(--accent-hover); }
+        .filter-btn[data-category="culturel"] { border-color: var(--culturel); color: var(--culturel); }
+        .filter-btn[data-category="culturel"].active { background: var(--culturel); color: white; }
+        .filter-btn[data-category="sportif"] { border-color: var(--sportif); color: var(--sportif); }
+        .filter-btn[data-category="sportif"].active { background: var(--sportif); color: white; }
+        .filter-btn[data-category="politique"] { border-color: var(--politique); color: var(--politique); }
+        .filter-btn[data-category="politique"].active { background: var(--politique); color: white; }
+        .filter-btn[data-category="economique"] { border-color: var(--economique); color: var(--economique); }
+        .filter-btn[data-category="economique"].active { background: var(--economique); color: white; }
+        .filter-btn[data-category="religieux"] { border-color: var(--religieux); color: var(--religieux); }
+        .filter-btn[data-category="religieux"].active { background: var(--religieux); color: white; }
+        .filter-btn[data-category="scientifique"] { border-color: var(--scientifique); color: var(--scientifique); }
+        .filter-btn[data-category="scientifique"].active { background: var(--scientifique); color: white; }
+
+        /* ===== CONTENU ===== */
+        .main-content {
+            height: calc(100vh - 165px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 4rem;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        .cards-zone {
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            padding: 0.5rem 0 0 0;
+            background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-elevated) 100%);
+            overflow: visible;
+            position: relative;
+        }
+
+        .cards-track {
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            transition: transform 0.3s ease;
+        }
+
+        .event-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            width: 240px;
+            height: 180px;
+            min-width: 240px;
+            box-shadow: var(--shadow-lg);
+            border-left: 4px solid var(--culturel);
+            position: absolute;
+            top: 5%;
+            z-index: 100;
+            cursor: pointer;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        
+        .event-card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        .event-card-front,
+        .event-card-back {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 0.6rem;
+            border-radius: 8px;
+            overflow-y: auto;
+        }
+        
+        .event-card-front {
+            z-index: 2;
+            transform: rotateY(0deg);
+            background: var(--bg-secondary);
+        }
+        
+        .event-card-back {
+            transform: rotateY(180deg);
+            background: var(--bg-elevated);
+        }
+        
+        .event-card-back-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--accent);
+        }
+        
+        .event-card-back-context {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        
+        .event-card-chatgpt-link {
+            display: inline-block;
+            background: none;
+            color: var(--text-muted);
+            padding: 0;
+            border-radius: 0;
+            text-decoration: none;
+            font-size: 0.65rem;
+            font-weight: 400;
+            transition: all 0.2s ease;
+            position: absolute;
+            bottom: 0.5rem;
+            left: 0.5rem;
+            opacity: 0.7;
+            font-style: italic;
+        }
+        
+        .event-card-chatgpt-link:hover {
+            background: none;
+            transform: none;
+            box-shadow: none;
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
+        .event-card-flip-hint {
+            position: absolute;
+            bottom: 0.5rem;
+            right: 0.5rem;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            opacity: 0.7;
+            font-style: italic;
+        }
+
+        .event-card::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 40px;
+            background: currentColor;
+            opacity: 0.4;
+            z-index: 100;
+        }
+
+        .event-card.culturel { border-left-color: var(--culturel); }
+        .event-card.culturel::after { color: var(--culturel); }
+        .event-card.sportif { border-left-color: var(--sportif); }
+        .event-card.sportif::after { color: var(--sportif); }
+        .event-card.politique { border-left-color: var(--politique); }
+        .event-card.politique::after { color: var(--politique); }
+        .event-card.economique { border-left-color: var(--economique); }
+        .event-card.economique::after { color: var(--economique); }
+        .event-card.religieux { border-left-color: var(--religieux); }
+        .event-card.religieux::after { color: var(--religieux); }
+        .event-card.scientifique { border-left-color: var(--scientifique); }
+        .event-card.scientifique::after { color: var(--scientifique); }
+
+        .event-card-year {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.15rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .event-card-date {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            margin-bottom: 0.3rem;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .event-card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            line-height: 1.2;
+        }
+
+        .event-card-location {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .event-card-location::before {
+            content: "📍";
+            font-size: 0.65rem;
+        }
+
+        .event-card-description {
+            line-height: 1.3;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .event-card-category {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+
+        .event-card-extra {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+        }
+
+        .event-card.culturel .event-card-category {
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--culturel);
+            border: 2px solid var(--culturel);
+        }
+        .event-card.sportif .event-card-category {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--sportif);
+            border: 2px solid var(--sportif);
+        }
+        .event-card.politique .event-card-category {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--politique);
+            border: 2px solid var(--politique);
+        }
+        .event-card.religieux .event-card-category {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--religieux);
+            border: 2px solid var(--religieux);
+        }
+        .event-card.scientifique .event-card-category {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--scientifique);
+            border: 2px solid var(--scientifique);
+        }
+
+        /* ===== FRISE ===== */
+        .timeline-container {
+            height: 80px;
+            position: relative;
+            background: var(--bg-secondary);
+            border-top: 2px solid var(--border);
+            border-bottom: 2px solid var(--border);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.03);
+            z-index: auto;
+        }
+
+        .timeline-scroll {
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        .timeline-scroll:active {
+            cursor: grabbing;
+        }
+
+        .timeline-track {
+            height: 100%;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .timeline-line {
+            position: absolute;
+            top: 60%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent) 10%, var(--accent) 90%, transparent);
+            transform: translateY(-50%);
+            opacity: 0.5;
+        }
+
+        .timeline-point {
+            position: absolute;
+            top: 60%;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 3px solid var(--culturel);
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 5;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .timeline-point:hover {
+            transform: translate(-50%, -50%) scale(1.4);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .timeline-point.active {
+            transform: translate(-50%, -50%) scale(1.6);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .timeline-point.culturel { border-color: var(--culturel); }
+        .timeline-point.sportif { border-color: var(--sportif); }
+        .timeline-point.politique { border-color: var(--politique); }
+        .timeline-point.economique { border-color: var(--economique); }
+        .timeline-point.religieux { border-color: var(--religieux); }
+        .timeline-point.scientifique { border-color: var(--scientifique); }
+
+        .year-label {
+            position: absolute;
+            top: 60%;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transform: translate(-50%, -200%);
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        /* ===== PÉRIODES ===== */
+        .periods-zone {
+            height: 280px;
+            position: relative;
+            padding: 0;
+            background: var(--bg-primary);
+            overflow: visible;
+        }
+
+        .periods-track {
+            position: relative;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .period-bar {
+            position: absolute;
+            height: 50px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            padding: 0 1.2rem;
+            z-index: 1;
+        }
+
+        .period-bar:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+            z-index: 9000;
+        }
+
+        .period-bar.active {
+            z-index: 9000;
+        }
+
+        .period-bar.culturel {
+            background: rgba(236, 72, 153, 0.12);
+            border: 2px solid rgba(236, 72, 153, 0.5);
+        }
+        .period-bar.sportif {
+            background: rgba(16, 185, 129, 0.12);
+            border: 2px solid rgba(16, 185, 129, 0.5);
+        }
+        .period-bar.politique {
+            background: rgba(239, 68, 68, 0.12);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+        }
+        .period-bar.economique {
+            background: rgba(245, 158, 11, 0.12);
+            border: 2px solid rgba(245, 158, 11, 0.5);
+        }
+        .period-bar.religieux {
+            background: rgba(139, 92, 246, 0.12);
+            border: 2px solid rgba(139, 92, 246, 0.5);
+        }
+        .period-bar.scientifique {
+            background: rgba(6, 182, 212, 0.12);
+            border: 2px solid rgba(6, 182, 212, 0.5);
+        }
+
+        .period-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .period-info {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+            min-width: 500px;
+            max-width: 600px;
+            min-height: 200px;
+            margin-bottom: 4rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            cursor: pointer;
+            transform-style: preserve-3d;
+        }
+        
+        .period-info.flipped {
+            transform: translateX(-50%) translateY(-25px) rotateY(180deg);
+        }
+        
+        .period-info-front,
+        .period-info-back {
+            backface-visibility: hidden;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            min-height: 200px;
+            padding: 1.2rem 1.5rem;
+            border-radius: 12px;
+            overflow-y: auto;
+        }
+        
+        .period-info-front {
+            z-index: 2;
+            transform: rotateY(0deg);
+            background: var(--bg-secondary);
+        }
+        
+        .period-info-back {
+            transform: rotateY(180deg);
+            background: var(--bg-elevated);
+        }
+        
+        .period-info-back-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--accent);
+            color: var(--accent);
+        }
+        
+        .period-info-back-context {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+        
+        .period-info-chatgpt-link {
+            display: inline-block;
+            background: none;
+            color: var(--text-muted);
+            padding: 0;
+            border-radius: 0;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 400;
+            transition: all 0.2s ease;
+            position: absolute;
+            bottom: 1rem;
+            left: 1.5rem;
+            opacity: 0.7;
+            font-style: italic;
+        }
+        
+        .period-info-chatgpt-link:hover {
+            background: none;
+            transform: none;
+            box-shadow: none;
+            opacity: 1;
+            text-decoration: underline;
+        }
+        
+        .period-info-flip-hint {
+            position: absolute;
+            bottom: 1rem;
+            right: 1.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            opacity: 0.7;
+            font-style: italic;
+        }
+
+        .period-bar.active .period-info {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(-25px);
+        }
+        
+        .period-bar.active .period-info.flipped {
+            transform: translateX(-50%) translateY(-25px) rotateY(180deg);
+        }
+
+        .period-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .period-info-title {
+            font-weight: 600;
+            font-size: 1.3rem;
+            line-height: 1.2;
+            flex: 1;
+        }
+
+        .period-info-dates {
+            font-family: 'Space Mono', monospace;
+            font-size: 1rem;
+            color: var(--accent);
+            font-weight: 700;
+            white-space: nowrap;
+            margin-left: 1rem;
+        }
+
+        .period-info-duration {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.3rem;
+        }
+
+        .period-info-description {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            margin-bottom: 0.8rem;
+        }
+
+        .period-info-category {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border-radius: 12px;
+            font-weight: 700;
+        }
+
+        .period-info.culturel .period-info-category {
+            background: rgba(236, 72, 153, 0.15);
+            color: var(--culturel);
+            border: 2px solid var(--culturel);
+        }
+        .period-info.sportif .period-info-category {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--sportif);
+            border: 2px solid var(--sportif);
+        }
+        .period-info.politique .period-info-category {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--politique);
+            border: 2px solid var(--politique);
+        }
+        .period-info.religieux .period-info-category {
+            background: rgba(139, 92, 246, 0.15);
+            color: var(--religieux);
+            border: 2px solid var(--religieux);
+        }
+        .period-info.scientifique .period-info-category {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--scientifique);
+            border: 2px solid var(--scientifique);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="main-nav">
+        <!-- Ligne 1 : Ères -->
+        <div class="nav-row">
+            <div class="nav-section">
+                <span class="nav-label">ÈRE</span>
+                <div class="nav-buttons" id="era-buttons">
+                    <button class="nav-btn" data-era="antiquite">Antiquité</button>
+                    <button class="nav-btn" data-era="moyen-age">Moyen Âge</button>
+                    <button class="nav-btn" data-era="temps-modernes">Temps Modernes</button>
+                    <button class="nav-btn" data-era="epoque-contemporaine">Époque Contemporaine</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ligne 2 : Siècles -->
+        <div class="nav-row">
+            <div class="nav-section">
+                <span class="nav-label">SIÈCLE</span>
+                <div class="nav-buttons" id="century-buttons">
+                    <button class="nav-btn" disabled>Sélectionner d'abord une ère</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ligne 3 : Catégories à gauche + Recherche à droite -->
+        <div class="nav-row space-between">
+            <div class="filters">
+                <button class="filter-btn active" data-category="all">Tous</button>
+                <button class="filter-btn" data-category="culturel">Culturel</button>
+                <button class="filter-btn" data-category="sportif">Sportif</button>
+                <button class="filter-btn" data-category="politique">Politique</button>
+                <button class="filter-btn" data-category="economique">Économique</button>
+                <button class="filter-btn" data-category="religieux">Religieux</button>
+                <button class="filter-btn" data-category="scientifique">Scientifique</button>
+            </div>
+
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-input" placeholder="Rechercher...">
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="empty-state" id="empty-state">
+            <div class="empty-state-icon">⏳</div>
+            <div class="empty-state-text">
+                Sélectionnez une ère et un siècle pour afficher la frise chronologique
+            </div>
+        </div>
+
+        <div class="cards-zone hidden" id="cards-zone">
+            <div class="cards-track" id="cards-track"></div>
+        </div>
+
+        <div class="timeline-container hidden" id="timeline-container">
+            <div class="timeline-scroll" id="timeline-scroll">
+                <div class="timeline-track" id="timeline-track">
+                    <div class="timeline-line"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="periods-zone hidden" id="periods-zone">
+            <div class="periods-track" id="periods-track"></div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // FRISE CHRONOLOGIQUE INTERACTIVE v10
+        // Version Google Sheets
+        // ========================================
+        
+        // ===== CONFIGURATION GOOGLE SHEETS =====
+        const GOOGLE_SHEETS_URLS = {
+            evenements: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTT1QOdjhRatGCfQvF7czEXiYrPqD9MaIr29WT6VVAoiNAZNPlQR44HCkwHW8NDs4E0dIWUwdu92UA3/pub?gid=220566018&single=true&output=csv',
+            periodes: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTT1QOdjhRatGCfQvF7czEXiYrPqD9MaIr29WT6VVAoiNAZNPlQR44HCkwHW8NDs4E0dIWUwdu92UA3/pub?gid=1369526158&single=true&output=csv'
+        };
+        
+        let isGoogleSheetsLoaded = false;
+        
+        // ===== FONCTION DE CHARGEMENT GOOGLE SHEETS =====
+        async function loadGoogleSheets() {
+            try {
+                console.log('📥 Chargement Google Sheets...');
+                
+                // Charger événements
+                const eventsResponse = await fetch(GOOGLE_SHEETS_URLS.evenements);
+                const eventsCSV = await eventsResponse.text();
+                const eventsLines = eventsCSV.split('\n');
+                
+                // Charger périodes
+                const periodsResponse = await fetch(GOOGLE_SHEETS_URLS.periodes);
+                const periodsCSV = await periodsResponse.text();
+                const periodsLines = periodsCSV.split('\n');
+                
+                console.log(`📊 ${eventsLines.length - 1} événements trouvés`);
+                console.log(`📊 ${periodsLines.length - 1} périodes trouvées`);
+                
+                // Parser événements (ignorer la ligne d'en-tête)
+                for (let i = 1; i < eventsLines.length; i++) {
+                    const line = eventsLines[i].trim();
+                    if (!line) continue;
+                    
+                    // Parser CSV en tenant compte des guillemets
+                    const cols = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            cols.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    cols.push(current.trim());
+                    
+                    if (cols.length < 11) continue;
+                    
+                    const era = cols[5].replace(/"/g, '').trim();
+                    const century = cols[4].replace(/"/g, '').trim();
+                    
+                    // Créer la structure si elle n'existe pas
+                    if (!DATA[era]) DATA[era] = {};
+                    if (!DATA[era][century]) DATA[era][century] = { events: [], periods: [] };
+                    
+                    // Ajouter l'événement
+                    DATA[era][century].events.push({
+                        year: parseInt(cols[2]),
+                        date: cols[3].replace(/"/g, ''),
+                        title: cols[1].replace(/"/g, ''),
+                        location: cols[7].replace(/"/g, ''),
+                        description: cols[8].replace(/"/g, ''),
+                        category: cols[6].replace(/"/g, '').toLowerCase(),
+                        context: cols[9].replace(/"/g, ''),
+                        chatgpt_link: cols[10].replace(/"/g, '')
+                    });
+                }
+                
+                // Parser périodes
+                for (let i = 1; i < periodsLines.length; i++) {
+                    const line = periodsLines[i].trim();
+                    if (!line) continue;
+                    
+                    const cols = [];
+                    let current = '';
+                    let inQuotes = false;
+                    
+                    for (let char of line) {
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            cols.push(current.trim());
+                            current = '';
+                        } else {
+                            current += char;
+                        }
+                    }
+                    cols.push(current.trim());
+                    
+                    if (cols.length < 13) continue;
+                    
+                    const era = cols[7].replace(/"/g, '').trim();
+                    const century = cols[6].replace(/"/g, '').trim();
+                    
+                    if (!DATA[era]) DATA[era] = {};
+                    if (!DATA[era][century]) DATA[era][century] = { events: [], periods: [] };
+                    
+                    DATA[era][century].periods.push({
+                        title: cols[1].replace(/"/g, ''),
+                        startYear: parseInt(cols[2]),
+                        endYear: parseInt(cols[3]),
+                        description: cols[10].replace(/"/g, ''),
+                        category: cols[8].replace(/"/g, '').toLowerCase(),
+                        context: cols[11].replace(/"/g, ''),
+                        chatgpt_link: cols[12].replace(/"/g, '')
+                    });
+                }
+                
+                isGoogleSheetsLoaded = true;
+                console.log('✅ Données Google Sheets chargées avec succès !');
+                return true;
+            } catch (error) {
+                console.error('❌ Erreur chargement Google Sheets:', error);
+                console.log('⚠️ Utilisation des données d\'exemple');
+                return false;
+            }
+        }
+        
+        // ===== DONNÉES D'EXEMPLE =====
+        // Structure : DATA[ere][siecle] = { events: [], periods: [] }
+        const DATA = {
+            'antiquite': {
+                '1-100': {
+                    events: [
+                        {
+                            year: 27,
+                            date: '16 janvier 27 av. J.-C.',
+                            title: 'Auguste premier empereur romain',
+                            location: 'Rome',
+                            description: 'Octave reçoit le titre d\'Auguste et devient le premier empereur romain.',
+                            category: 'politique',
+                            context: 'Début de l\'Empire romain'
+                        },
+                        {
+                            year: 52,
+                            date: '52',
+                            title: 'Siège d\'Alésia',
+                            location: 'Alésia, Gaule',
+                            description: 'Vercingétorix est vaincu par Jules César, marquant la fin de la résistance gauloise.',
+                            category: 'politique',
+                            context: 'Conquête romaine de la Gaule'
+                        },
+                        {
+                            year: 64,
+                            date: '64',
+                            title: 'Grand incendie de Rome',
+                            location: 'Rome',
+                            description: 'Immense incendie qui détruit une grande partie de Rome sous Néron.',
+                            category: 'politique',
+                            context: 'Persécution des chrétiens'
+                        },
+                        {
+                            year: 70,
+                            date: '70',
+                            title: 'Destruction du Temple de Jérusalem',
+                            location: 'Jérusalem',
+                            description: 'Les Romains détruisent le Second Temple de Jérusalem.',
+                            category: 'religieux',
+                            context: 'Diaspora juive'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Gaule romaine',
+                            startYear: 50,
+                            endYear: 100,
+                            description: 'Romanisation de la Gaule après la conquête.',
+                            category: 'politique',
+                            context: 'Pax Romana'
+                        }
+                    ]
+                },
+                '101-200': {
+                    events: [
+                        {
+                            year: 117,
+                            date: '117',
+                            title: 'Apogée de l\'Empire romain',
+                            location: 'Empire romain',
+                            description: 'Sous Trajan, l\'Empire romain atteint son extension maximale.',
+                            category: 'politique',
+                            context: 'Maximum territorial'
+                        },
+                        {
+                            year: 177,
+                            date: '177',
+                            title: 'Martyrs de Lyon',
+                            location: 'Lugdunum (Lyon), Gaule',
+                            description: 'Persécution des chrétiens à Lyon, dont sainte Blandine.',
+                            category: 'religieux',
+                            context: 'Persécutions chrétiennes'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Pax Romana',
+                            startYear: 101,
+                            endYear: 180,
+                            description: 'Période de paix et prospérité dans l\'Empire romain.',
+                            category: 'politique',
+                            context: 'Apogée de Rome'
+                        }
+                    ]
+                },
+                '201-300': {
+                    events: [
+                        {
+                            year: 212,
+                            date: '212',
+                            title: 'Édit de Caracalla',
+                            location: 'Empire romain',
+                            description: 'Tous les hommes libres de l\'Empire deviennent citoyens romains.',
+                            category: 'politique',
+                            context: 'Universalisation de la citoyenneté'
+                        },
+                        {
+                            year: 250,
+                            date: '250',
+                            title: 'Début des grandes invasions',
+                            location: 'Empire romain',
+                            description: 'Les peuples barbares commencent à envahir l\'Empire romain.',
+                            category: 'politique',
+                            context: 'Crise du IIIe siècle'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Crise du IIIe siècle',
+                            startYear: 235,
+                            endYear: 284,
+                            description: 'Période de troubles politiques et militaires dans l\'Empire.',
+                            category: 'politique',
+                            context: 'Anarchie militaire'
+                        }
+                    ]
+                },
+                '301-400': {
+                    events: [
+                        {
+                            year: 313,
+                            date: '313',
+                            title: 'Édit de Milan',
+                            location: 'Milan, Empire romain',
+                            description: 'Constantin accorde la liberté de culte aux chrétiens dans l\'Empire romain.',
+                            category: 'religieux',
+                            context: 'Christianisation de l\'Empire'
+                        },
+                        {
+                            year: 330,
+                            date: '11 mai 330',
+                            title: 'Fondation de Constantinople',
+                            location: 'Constantinople',
+                            description: 'Constantin fonde Constantinople, nouvelle capitale de l\'Empire.',
+                            category: 'politique',
+                            context: 'Déplacement du centre de gravité vers l\'Est'
+                        },
+                        {
+                            year: 380,
+                            date: '380',
+                            title: 'Édit de Thessalonique',
+                            location: 'Empire romain',
+                            description: 'Le christianisme devient religion officielle de l\'Empire romain.',
+                            category: 'religieux',
+                            context: 'Christianisation complète'
+                        }
+                    ],
+                    periods: []
+                },
+                '401-500': {
+                    events: [
+                        {
+                            year: 476,
+                            date: '476',
+                            title: 'Chute de l\'Empire romain d\'Occident',
+                            location: 'Rome',
+                            description: 'Romulus Augustule est déposé, marquant la fin de l\'Empire romain d\'Occident.',
+                            category: 'politique',
+                            context: 'Fin de l\'Antiquité'
+                        },
+                        {
+                            year: 496,
+                            date: '25 décembre 496',
+                            title: 'Baptême de Clovis',
+                            location: 'Reims, France',
+                            description: 'Clovis, roi des Francs, se convertit au christianisme et est baptisé par saint Rémi.',
+                            category: 'religieux',
+                            context: 'Naissance de la France chrétienne'
+                        }
+                    ],
+                    periods: []
+                }
+            },
+            'moyen-age': {
+                '501-600': {
+                    events: [
+                        {
+                            year: 507,
+                            date: '507',
+                            title: 'Bataille de Vouillé',
+                            location: 'Vouillé, France',
+                            description: 'Clovis vainc les Wisigoths et étend son royaume vers le sud.',
+                            category: 'politique',
+                            context: 'Expansion franque'
+                        },
+                        {
+                            year: 529,
+                            date: '529',
+                            title: 'Fondation de l\'abbaye du Mont-Cassin',
+                            location: 'Italie',
+                            description: 'Saint Benoît fonde l\'abbaye, berceau du monachisme occidental.',
+                            category: 'religieux',
+                            context: 'Développement monastique'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Royaume des Francs',
+                            startYear: 509,
+                            endYear: 600,
+                            description: 'Extension du royaume franc sous les Mérovingiens.',
+                            category: 'politique',
+                            context: 'Haut Moyen Âge'
+                        }
+                    ]
+                },
+                '601-700': {
+                    events: [
+                        {
+                            year: 622,
+                            date: '622',
+                            title: 'Hégire de Mahomet',
+                            location: 'Médine, Arabie',
+                            description: 'Mahomet fuit La Mecque pour Médine, début du calendrier musulman.',
+                            category: 'religieux',
+                            context: 'Naissance de l\'Islam'
+                        },
+                        {
+                            year: 687,
+                            date: '687',
+                            title: 'Pépin de Herstal maire du palais',
+                            location: 'Royaume franc',
+                            description: 'Pépin de Herstal devient le vrai maître du royaume franc.',
+                            category: 'politique',
+                            context: 'Montée des Pippinides'
+                        }
+                    ],
+                    periods: []
+                },
+                '701-800': {
+                    events: [
+                        {
+                            year: 732,
+                            date: 'Octobre 732',
+                            title: 'Bataille de Poitiers',
+                            location: 'Poitiers, France',
+                            description: 'Charles Martel arrête l\'expansion musulmane en Europe occidentale.',
+                            category: 'politique',
+                            context: 'Défense de la chrétienté'
+                        },
+                        {
+                            year: 768,
+                            date: '768',
+                            title: 'Avènement de Charlemagne',
+                            location: 'Royaume franc',
+                            description: 'Charlemagne devient roi des Francs et étend considérablement son royaume.',
+                            category: 'politique',
+                            context: 'Renaissance carolingienne'
+                        }
+                    ],
+                    periods: []
+                },
+                '801-900': {
+                    events: [
+                        {
+                            year: 800,
+                            date: '25 décembre 800',
+                            title: 'Couronnement de Charlemagne',
+                            location: 'Rome',
+                            description: 'Charlemagne est couronné empereur d\'Occident par le pape Léon III.',
+                            category: 'politique',
+                            context: 'Restauration de l\'Empire en Occident'
+                        },
+                        {
+                            year: 843,
+                            date: 'Août 843',
+                            title: 'Traité de Verdun',
+                            location: 'Verdun',
+                            description: 'Partage de l\'empire carolingien entre les trois petits-fils de Charlemagne.',
+                            category: 'politique',
+                            context: 'Naissance de la France et de l\'Allemagne'
+                        }
+                    ],
+                    periods: []
+                },
+                '901-1000': {
+                    events: [
+                        {
+                            year: 987,
+                            date: '987',
+                            title: 'Avènement d\'Hugues Capet',
+                            location: 'France',
+                            description: 'Hugues Capet est élu roi des Francs, fondant la dynastie capétienne.',
+                            category: 'politique',
+                            context: 'Début de la monarchie française'
+                        }
+                    ],
+                    periods: []
+                },
+                '1001-1100': {
+                    events: [
+                        {
+                            year: 1066,
+                            date: '14 octobre 1066',
+                            title: 'Bataille d\'Hastings',
+                            location: 'Hastings, Angleterre',
+                            description: 'Guillaume le Conquérant, duc de Normandie, conquiert l\'Angleterre.',
+                            category: 'politique',
+                            context: 'Conquête normande'
+                        },
+                        {
+                            year: 1095,
+                            date: '27 novembre 1095',
+                            title: 'Concile de Clermont',
+                            location: 'Clermont, France',
+                            description: 'Le pape Urbain II lance la première croisade pour libérer Jérusalem.',
+                            category: 'religieux',
+                            context: 'Début des croisades'
+                        }
+                    ],
+                    periods: []
+                },
+                '1101-1200': {
+                    events: [
+                        {
+                            year: 1163,
+                            date: '1163',
+                            title: 'Début de la construction de Notre-Dame',
+                            location: 'Paris, France',
+                            description: 'Début de la construction de la cathédrale Notre-Dame de Paris.',
+                            category: 'culturel',
+                            context: 'Art gothique français'
+                        }
+                    ],
+                    periods: []
+                },
+                '1201-1300': {
+                    events: [
+                        {
+                            year: 1214,
+                            date: '27 juillet 1214',
+                            title: 'Bataille de Bouvines',
+                            location: 'Bouvines, France',
+                            description: 'Philippe Auguste remporte une victoire décisive contre une coalition européenne.',
+                            category: 'politique',
+                            context: 'Affirmation du royaume de France'
+                        },
+                        {
+                            year: 1226,
+                            date: '1226',
+                            title: 'Avènement de Saint Louis',
+                            location: 'France',
+                            description: 'Louis IX devient roi de France, il sera canonisé en 1297.',
+                            category: 'politique',
+                            context: 'Apogée médiévale française'
+                        }
+                    ],
+                    periods: []
+                },
+                '1301-1400': {
+                    events: [
+                        {
+                            year: 1337,
+                            date: '1337',
+                            title: 'Début de la guerre de Cent Ans',
+                            location: 'France',
+                            description: 'Début du conflit entre la France et l\'Angleterre pour la couronne de France.',
+                            category: 'politique',
+                            context: 'Guerre de Cent Ans'
+                        },
+                        {
+                            year: 1348,
+                            date: '1348',
+                            title: 'La peste noire en France',
+                            location: 'France',
+                            description: 'L\'épidémie de peste bubonique décime un tiers de la population française.',
+                            category: 'politique',
+                            context: 'Grande peste médiévale'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Guerre de Cent Ans',
+                            startYear: 1337,
+                            endYear: 1400,
+                            description: 'Conflit majeur entre la France et l\'Angleterre.',
+                            category: 'politique',
+                            context: 'Lutte pour la couronne'
+                        }
+                    ]
+                },
+                '1401-1500': {
+                    events: [
+                        {
+                            year: 1429,
+                            date: '8 mai 1429',
+                            title: 'Jeanne d\'Arc libère Orléans',
+                            location: 'Orléans, France',
+                            description: 'Jeanne d\'Arc mène les troupes françaises à la victoire et libère Orléans.',
+                            category: 'politique',
+                            context: 'Tournant de la guerre de Cent Ans'
+                        },
+                        {
+                            year: 1453,
+                            date: '1453',
+                            title: 'Fin de la guerre de Cent Ans',
+                            location: 'France',
+                            description: 'Victoire française à Castillon, fin du conflit avec l\'Angleterre.',
+                            category: 'politique',
+                            context: 'Reconstruction du royaume'
+                        },
+                        {
+                            year: 1492,
+                            date: '12 octobre 1492',
+                            title: 'Découverte de l\'Amérique',
+                            location: 'Amérique',
+                            description: 'Christophe Colomb atteint les Amériques.',
+                            category: 'scientifique',
+                            context: 'Grandes découvertes'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Guerre de Cent Ans (fin)',
+                            startYear: 1401,
+                            endYear: 1453,
+                            description: 'Phase finale du conflit franco-anglais.',
+                            category: 'politique',
+                            context: 'Victoire française'
+                        }
+                    ]
+                }
+            },
+            'temps-modernes': {
+                '1501-1600': {
+                    events: [
+                        {
+                            year: 1515,
+                            date: '13-14 septembre 1515',
+                            title: 'Bataille de Marignan',
+                            location: 'Marignan, Italie',
+                            description: 'François Ier remporte une victoire éclatante en Italie.',
+                            category: 'politique',
+                            context: 'Guerres d\'Italie'
+                        },
+                        {
+                            year: 1534,
+                            date: '1534',
+                            title: 'Jacques Cartier au Canada',
+                            location: 'Canada',
+                            description: 'Jacques Cartier explore le Canada pour le compte de François Ier.',
+                            category: 'scientifique',
+                            context: 'Exploration française en Amérique'
+                        },
+                        {
+                            year: 1572,
+                            date: '24 août 1572',
+                            title: 'Massacre de la Saint-Barthélemy',
+                            location: 'Paris, France',
+                            description: 'Massacre de protestants à Paris pendant les guerres de Religion.',
+                            category: 'religieux',
+                            context: 'Guerres de Religion'
+                        },
+                        {
+                            year: 1589,
+                            date: '1589',
+                            title: 'Henri IV devient roi',
+                            location: 'France',
+                            description: 'Henri de Navarre devient Henri IV, premier roi Bourbon.',
+                            category: 'politique',
+                            context: 'Fin des guerres de Religion'
+                        },
+                        {
+                            year: 1598,
+                            date: '13 avril 1598',
+                            title: 'Édit de Nantes',
+                            location: 'Nantes, France',
+                            description: 'Henri IV accorde la liberté de culte aux protestants.',
+                            category: 'religieux',
+                            context: 'Pacification religieuse'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Guerres de Religion',
+                            startYear: 1562,
+                            endYear: 1598,
+                            description: 'Conflits entre catholiques et protestants en France.',
+                            category: 'religieux',
+                            context: 'Division religieuse'
+                        }
+                    ]
+                },
+                '1601-1700': {
+                    events: [
+                        {
+                            year: 1610,
+                            date: '14 mai 1610',
+                            title: 'Assassinat d\'Henri IV',
+                            location: 'Paris, France',
+                            description: 'Henri IV est assassiné par Ravaillac.',
+                            category: 'politique',
+                            context: 'Fin du règne d\'Henri IV'
+                        },
+                        {
+                            year: 1624,
+                            date: '1624',
+                            title: 'Richelieu Premier ministre',
+                            location: 'France',
+                            description: 'Le cardinal de Richelieu devient principal ministre de Louis XIII.',
+                            category: 'politique',
+                            context: 'Absolutisme royal'
+                        },
+                        {
+                            year: 1643,
+                            date: '1643',
+                            title: 'Avènement de Louis XIV',
+                            location: 'France',
+                            description: 'Louis XIV devient roi à 5 ans, règne qui durera 72 ans.',
+                            category: 'politique',
+                            context: 'Le Roi-Soleil'
+                        },
+                        {
+                            year: 1661,
+                            date: '1661',
+                            title: 'Début du règne personnel de Louis XIV',
+                            location: 'France',
+                            description: 'Louis XIV gouverne seul après la mort de Mazarin.',
+                            category: 'politique',
+                            context: 'Absolutisme à son apogée'
+                        },
+                        {
+                            year: 1682,
+                            date: '6 mai 1682',
+                            title: 'Installation à Versailles',
+                            location: 'Versailles, France',
+                            description: 'Louis XIV installe définitivement la Cour au château de Versailles.',
+                            category: 'culturel',
+                            context: 'Symbole du pouvoir royal'
+                        },
+                        {
+                            year: 1685,
+                            date: '18 octobre 1685',
+                            title: 'Révocation de l\'Édit de Nantes',
+                            location: 'France',
+                            description: 'Louis XIV interdit le protestantisme en France.',
+                            category: 'religieux',
+                            context: 'Intolérance religieuse'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Règne de Louis XIV',
+                            startYear: 1643,
+                            endYear: 1700,
+                            description: 'Le Roi-Soleil, apogée de l\'absolutisme français.',
+                            category: 'politique',
+                            context: 'Grand Siècle'
+                        }
+                    ]
+                },
+                '1701-1800': {
+                    events: [
+                        {
+                            year: 1715,
+                            date: '1er septembre 1715',
+                            title: 'Mort de Louis XIV',
+                            location: 'Versailles, France',
+                            description: 'Après 72 ans de règne, Louis XIV meurt, Louis XV lui succède.',
+                            category: 'politique',
+                            context: 'Fin du Grand Siècle'
+                        },
+                        {
+                            year: 1751,
+                            date: '1751',
+                            title: 'Publication de l\'Encyclopédie',
+                            location: 'Paris, France',
+                            description: 'Diderot et d\'Alembert publient le premier tome de l\'Encyclopédie.',
+                            category: 'culturel',
+                            context: 'Siècle des Lumières'
+                        },
+                        {
+                            year: 1774,
+                            date: '1774',
+                            title: 'Avènement de Louis XVI',
+                            location: 'France',
+                            description: 'Louis XVI devient roi, dernier roi avant la Révolution.',
+                            category: 'politique',
+                            context: 'Crise de l\'Ancien Régime'
+                        },
+                        {
+                            year: 1789,
+                            date: '14 juillet 1789',
+                            title: 'Prise de la Bastille',
+                            location: 'Paris, France',
+                            description: 'Le peuple parisien prend la Bastille, symbole de l\'Ancien Régime.',
+                            category: 'politique',
+                            context: 'Début de la Révolution française'
+                        },
+                        {
+                            year: 1789,
+                            date: '26 août 1789',
+                            title: 'Déclaration des Droits de l\'Homme',
+                            location: 'Versailles, France',
+                            description: 'L\'Assemblée vote la Déclaration des Droits de l\'Homme et du Citoyen.',
+                            category: 'politique',
+                            context: 'Principes révolutionnaires'
+                        },
+                        {
+                            year: 1792,
+                            date: '22 septembre 1792',
+                            title: 'Proclamation de la République',
+                            location: 'Paris, France',
+                            description: 'La Convention proclame la Première République française.',
+                            category: 'politique',
+                            context: 'Abolition de la monarchie'
+                        },
+                        {
+                            year: 1793,
+                            date: '21 janvier 1793',
+                            title: 'Exécution de Louis XVI',
+                            location: 'Paris, France',
+                            description: 'Louis XVI est guillotiné place de la Révolution.',
+                            category: 'politique',
+                            context: 'Terreur révolutionnaire'
+                        },
+                        {
+                            year: 1799,
+                            date: '9 novembre 1799',
+                            title: 'Coup d\'État du 18 Brumaire',
+                            location: 'Paris, France',
+                            description: 'Napoléon Bonaparte prend le pouvoir et devient Premier Consul.',
+                            category: 'politique',
+                            context: 'Fin de la Révolution'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Siècle des Lumières',
+                            startYear: 1715,
+                            endYear: 1789,
+                            description: 'Période intellectuelle et philosophique majeure.',
+                            category: 'culturel',
+                            context: 'Philosophes et réformes'
+                        },
+                        {
+                            title: 'Révolution française',
+                            startYear: 1789,
+                            endYear: 1799,
+                            description: 'Bouleversement politique et social radical.',
+                            category: 'politique',
+                            context: 'Fin de l\'Ancien Régime'
+                        }
+                    ]
+                }
+            },
+            'epoque-contemporaine': {
+                '1801-1900': {
+                    events: [
+                        {
+                            year: 1804,
+                            date: '2 décembre 1804',
+                            title: 'Sacre de Napoléon Ier',
+                            location: 'Paris, France',
+                            description: 'Napoléon Bonaparte se couronne empereur des Français à Notre-Dame de Paris, marquant le début du Premier Empire.',
+                            category: 'politique',
+                            context: 'Fin de la période révolutionnaire française'
+                        },
+                        {
+                            year: 1815,
+                            date: '18 juin 1815',
+                            title: 'Bataille de Waterloo',
+                            location: 'Waterloo, Belgique',
+                            description: 'Défaite finale de Napoléon face aux armées britanniques et prussiennes, marquant la fin définitive du Premier Empire.',
+                            category: 'politique',
+                            context: 'Fin des guerres napoléoniennes'
+                        },
+                        {
+                            year: 1848,
+                            date: '24 février 1848',
+                            title: 'Révolution de 1848',
+                            location: 'Paris, France',
+                            description: 'Chute de la monarchie de Juillet et proclamation de la Deuxième République française.',
+                            category: 'politique',
+                            context: 'Printemps des peuples en Europe'
+                        },
+                        {
+                            year: 1859,
+                            date: '24 novembre 1859',
+                            title: 'Publication de "L\'Origine des espèces"',
+                            location: 'Londres, Angleterre',
+                            description: 'Charles Darwin publie son ouvrage révolutionnaire sur la théorie de l\'évolution par sélection naturelle.',
+                            category: 'scientifique',
+                            context: 'Révolution scientifique du 19e siècle'
+                        },
+                        {
+                            year: 1869,
+                            date: '17 novembre 1869',
+                            title: 'Inauguration du Canal de Suez',
+                            location: 'Suez, Égypte',
+                            description: 'Ouverture du canal reliant la Méditerranée à la mer Rouge, révolutionnant le commerce maritime mondial.',
+                            category: 'scientifique',
+                            context: 'Grande époque des infrastructures'
+                        },
+                        {
+                            year: 1889,
+                            date: '31 mars 1889',
+                            title: 'Inauguration de la Tour Eiffel',
+                            location: 'Paris, France',
+                            description: 'Construction pour l\'Exposition universelle, la Tour Eiffel devient le symbole de Paris et prouesse technique de son époque.',
+                            category: 'culturel',
+                            context: 'Belle Époque et modernité parisienne'
+                        },
+                        {
+                            year: 1805,
+                            date: '2 décembre 1805',
+                            title: 'Bataille d\'Austerlitz',
+                            location: 'Austerlitz, Moravie',
+                            description: 'Victoire décisive de Napoléon contre les armées austro-russes, considérée comme son chef-d\'œuvre tactique.',
+                            category: 'politique',
+                            context: 'Guerres napoléoniennes'
+                        },
+                        {
+                            year: 1830,
+                            date: '27-29 juillet 1830',
+                            title: 'Les Trois Glorieuses',
+                            location: 'Paris, France',
+                            description: 'Révolution parisienne qui renverse Charles X et aboutit à l\'avènement de Louis-Philippe Ier.',
+                            category: 'politique',
+                            context: 'Monarchie de Juillet'
+                        },
+                        {
+                            year: 1852,
+                            date: '2 décembre 1852',
+                            title: 'Second Empire',
+                            location: 'Paris, France',
+                            description: 'Louis-Napoléon Bonaparte devient Napoléon III, empereur des Français.',
+                            category: 'politique',
+                            context: 'Restauration impériale'
+                        },
+                        {
+                            year: 1870,
+                            date: '4 septembre 1870',
+                            title: 'Proclamation de la IIIe République',
+                            location: 'Paris, France',
+                            description: 'Après la défaite de Sedan, la République est proclamée et Napoléon III abdique.',
+                            category: 'politique',
+                            context: 'Guerre franco-prussienne'
+                        },
+                        {
+                            year: 1871,
+                            date: '18 mars - 28 mai 1871',
+                            title: 'La Commune de Paris',
+                            location: 'Paris, France',
+                            description: 'Insurrection populaire et gouvernement révolutionnaire parisien, violemment réprimé.',
+                            category: 'politique',
+                            context: 'Première expérience de gouvernement ouvrier'
+                        },
+                        {
+                            year: 1881,
+                            date: '16 juin 1881',
+                            title: 'Loi sur la liberté de la presse',
+                            location: 'Paris, France',
+                            description: 'Jules Ferry fait adopter une loi fondamentale garantissant la liberté d\'expression.',
+                            category: 'politique',
+                            context: 'Lois républicaines fondamentales'
+                        },
+                        {
+                            year: 1882,
+                            date: '28 mars 1882',
+                            title: 'Loi Ferry - École gratuite et obligatoire',
+                            location: 'Paris, France',
+                            description: 'Jules Ferry instaure l\'école publique gratuite, laïque et obligatoire.',
+                            category: 'politique',
+                            context: 'Réformes républicaines de l\'éducation'
+                        },
+                        {
+                            year: 1894,
+                            date: 'Octobre 1894',
+                            title: 'Début de l\'Affaire Dreyfus',
+                            location: 'Paris, France',
+                            description: 'Le capitaine Alfred Dreyfus est injustement condamné pour espionnage.',
+                            category: 'politique',
+                            context: 'Division profonde de la société française'
+                        },
+                        {
+                            year: 1895,
+                            date: '28 décembre 1895',
+                            title: 'Première projection cinématographique',
+                            location: 'Paris, France',
+                            description: 'Les frères Lumière organisent la première séance publique de cinématographe.',
+                            category: 'culturel',
+                            context: 'Naissance du 7e art'
+                        },
+                        {
+                            year: 1898,
+                            date: '13 janvier 1898',
+                            title: 'J\'accuse d\'Émile Zola',
+                            location: 'Paris, France',
+                            description: 'Zola publie sa lettre ouverte défendant Dreyfus et accusant l\'armée.',
+                            category: 'politique',
+                            context: 'Tournant de l\'affaire Dreyfus'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Premier Empire',
+                            startYear: 1804,
+                            endYear: 1815,
+                            description: 'Période de règne de Napoléon Bonaparte comme Empereur des Français, marquée par de nombreuses campagnes militaires en Europe et des réformes administratives majeures.',
+                            category: 'politique',
+                            context: 'Apogée puis chute de Napoléon'
+                        },
+                        {
+                            title: 'Révolution industrielle',
+                            startYear: 1820,
+                            endYear: 1900,
+                            description: 'Période de transformations économiques et sociales majeures avec l\'essor de l\'industrie, l\'urbanisation massive et l\'apparition de nouvelles classes sociales.',
+                            category: 'scientifique',
+                            context: 'Bouleversement économique et social'
+                        },
+                        {
+                            title: 'Deuxième République',
+                            startYear: 1848,
+                            endYear: 1852,
+                            description: 'Régime républicain français entre la monarchie de Juillet et le Second Empire, caractérisé par l\'instauration du suffrage universel masculin.',
+                            category: 'politique',
+                            context: 'Printemps des peuples en Europe'
+                        }
+                    ]
+                },
+                '1901-2000': {
+                    events: [
+                        {
+                            year: 1905,
+                            date: '9 décembre 1905',
+                            title: 'Loi de séparation des Églises et de l\'État',
+                            location: 'Paris, France',
+                            description: 'Vote de la loi instaurant la laïcité en France, mettant fin au Concordat de 1801.',
+                            category: 'politique',
+                            context: 'Fondation de la laïcité française'
+                        },
+                        {
+                            year: 1914,
+                            date: '28 juillet 1914',
+                            title: 'Début de la Première Guerre mondiale',
+                            location: 'Europe',
+                            description: 'Déclenchement du premier conflit mondial suite à l\'assassinat de l\'archiduc François-Ferdinand.',
+                            category: 'politique',
+                            context: 'Grande Guerre 1914-1918'
+                        },
+                        {
+                            year: 1916,
+                            date: '21 février - 18 décembre 1916',
+                            title: 'Bataille de Verdun',
+                            location: 'Verdun, France',
+                            description: 'Bataille la plus longue et l\'une des plus meurtrières de la Première Guerre mondiale.',
+                            category: 'politique',
+                            context: 'Symbole de la Grande Guerre'
+                        },
+                        {
+                            year: 1918,
+                            date: '11 novembre 1918',
+                            title: 'Armistice de 1918',
+                            location: 'Rethondes, France',
+                            description: 'Signature de l\'armistice mettant fin aux combats de la Première Guerre mondiale.',
+                            category: 'politique',
+                            context: 'Fin de la Grande Guerre'
+                        },
+                        {
+                            year: 1929,
+                            date: '24 octobre 1929',
+                            title: 'Krach de Wall Street',
+                            location: 'New York, États-Unis',
+                            description: 'Effondrement de la bourse de New York marquant le début de la Grande Dépression.',
+                            category: 'politique',
+                            context: 'Crise économique mondiale'
+                        },
+                        {
+                            year: 1936,
+                            date: 'Juin 1936',
+                            title: 'Front populaire et accords Matignon',
+                            location: 'Paris, France',
+                            description: 'Victoire électorale du Front populaire, congés payés et semaine de 40h.',
+                            category: 'politique',
+                            context: 'Avancées sociales majeures'
+                        },
+                        {
+                            year: 1940,
+                            date: '18 juin 1940',
+                            title: 'Appel du 18 juin',
+                            location: 'Londres, Angleterre',
+                            description: 'De Gaulle lance son appel à la résistance depuis la BBC.',
+                            category: 'politique',
+                            context: 'Symbole de la Résistance française'
+                        },
+                        {
+                            year: 1944,
+                            date: '6 juin 1944',
+                            title: 'Débarquement de Normandie',
+                            location: 'Normandie, France',
+                            description: 'Débarquement allié sur les côtes normandes, début de la Libération.',
+                            category: 'politique',
+                            context: 'Jour J - Liberation'
+                        },
+                        {
+                            year: 1944,
+                            date: '25 août 1944',
+                            title: 'Libération de Paris',
+                            location: 'Paris, France',
+                            description: 'Les forces alliées et la Résistance libèrent Paris de l\'occupation allemande.',
+                            category: 'politique',
+                            context: 'Fin de l\'Occupation'
+                        },
+                        {
+                            year: 1945,
+                            date: '8 mai 1945',
+                            title: 'Fin de la Seconde Guerre mondiale en Europe',
+                            location: 'Europe',
+                            description: 'Capitulation de l\'Allemagne nazie marquant la fin de la guerre en Europe.',
+                            category: 'politique',
+                            context: 'Libération et reconstruction'
+                        },
+                        {
+                            year: 1958,
+                            date: '4 octobre 1958',
+                            title: 'Constitution de la Ve République',
+                            location: 'Paris, France',
+                            description: 'De Gaulle fait adopter une nouvelle constitution renforçant les pouvoirs du président.',
+                            category: 'politique',
+                            context: 'Régime politique actuel'
+                        },
+                        {
+                            year: 1962,
+                            date: '18 mars 1962',
+                            title: 'Accords d\'Évian',
+                            location: 'Évian, France',
+                            description: 'Signature des accords mettant fin à la guerre d\'Algérie.',
+                            category: 'politique',
+                            context: 'Fin de la décolonisation'
+                        },
+                        {
+                            year: 1968,
+                            date: 'Mai 1968',
+                            title: 'Mai 68',
+                            location: 'Paris, France',
+                            description: 'Mouvement de contestation étudiant et sociale qui ébranle la société française.',
+                            category: 'politique',
+                            context: 'Révolution culturelle et sociale'
+                        },
+                        {
+                            year: 1969,
+                            date: '21 juillet 1969',
+                            title: 'Premier pas sur la Lune',
+                            location: 'Mer de la Tranquillité, Lune',
+                            description: 'Neil Armstrong devient le premier homme à marcher sur la Lune.',
+                            category: 'scientifique',
+                            context: 'Course à l\'espace USA-URSS'
+                        },
+                        {
+                            year: 1981,
+                            date: '10 mai 1981',
+                            title: 'Élection de François Mitterrand',
+                            location: 'Paris, France',
+                            description: 'Premier président socialiste de la Ve République.',
+                            category: 'politique',
+                            context: 'Alternance politique historique'
+                        },
+                        {
+                            year: 1989,
+                            date: '9 novembre 1989',
+                            title: 'Chute du Mur de Berlin',
+                            location: 'Berlin, Allemagne',
+                            description: 'Destruction du mur séparant Berlin-Est et Berlin-Ouest.',
+                            category: 'politique',
+                            context: 'Fin du bloc soviétique'
+                        },
+                        {
+                            year: 1998,
+                            date: '12 juillet 1998',
+                            title: 'Victoire de la France en Coupe du Monde',
+                            location: 'Saint-Denis, France',
+                            description: 'L\'équipe de France remporte sa première Coupe du Monde de football (3-0).',
+                            category: 'sportif',
+                            context: 'France 98 et euphorie nationale'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Première Guerre mondiale',
+                            startYear: 1914,
+                            endYear: 1918,
+                            description: 'Premier conflit mondial ayant causé des millions de morts et bouleversé l\'ordre géopolitique européen. Guerre de tranchées marquée par une violence inédite.',
+                            category: 'politique',
+                            context: 'Grande Guerre - Der des Ders'
+                        },
+                        {
+                            title: 'Seconde Guerre mondiale',
+                            startYear: 1939,
+                            endYear: 1945,
+                            description: 'Conflit le plus meurtrier de l\'histoire de l\'humanité, opposant les Alliés aux puissances de l\'Axe. Marqué par la Shoah et l\'utilisation de l\'arme atomique.',
+                            category: 'politique',
+                            context: 'Guerre totale et génocide'
+                        },
+                        {
+                            title: 'Guerre froide',
+                            startYear: 1947,
+                            endYear: 1991,
+                            description: 'Période de tensions géopolitiques entre les États-Unis et l\'URSS, caractérisée par la course aux armements, la conquête spatiale et les conflits périphériques.',
+                            category: 'politique',
+                            context: 'Affrontement Est-Ouest'
+                        },
+                        {
+                            title: 'Trente Glorieuses',
+                            startYear: 1945,
+                            endYear: 1973,
+                            description: 'Période de forte croissance économique en France et en Europe occidentale, caractérisée par le plein emploi, la consommation de masse et l\'État providence.',
+                            category: 'politique',
+                            context: 'Boom économique d\'après-guerre'
+                        }
+                    ]
+                },
+                '2001-2100': {
+                    events: [
+                        {
+                            year: 2001,
+                            date: '11 septembre 2001',
+                            title: 'Attentats du 11 septembre',
+                            location: 'New York, États-Unis',
+                            description: 'Attentats terroristes contre le World Trade Center et le Pentagone.',
+                            category: 'politique',
+                            context: 'Début de la guerre contre le terrorisme'
+                        },
+                        {
+                            year: 2002,
+                            date: '1er janvier 2002',
+                            title: 'Passage à l\'euro',
+                            location: 'France et Europe',
+                            description: 'L\'euro remplace le franc français comme monnaie officielle.',
+                            category: 'politique',
+                            context: 'Intégration européenne'
+                        },
+                        {
+                            year: 2005,
+                            date: '29 mai 2005',
+                            title: 'Non au référendum sur la Constitution européenne',
+                            location: 'France',
+                            description: 'Les Français rejettent par référendum le projet de Constitution européenne.',
+                            category: 'politique',
+                            context: 'Euroscepticisme français'
+                        },
+                        {
+                            year: 2007,
+                            date: '6 mai 2007',
+                            title: 'Élection de Nicolas Sarkozy',
+                            location: 'France',
+                            description: 'Nicolas Sarkozy devient président de la République.',
+                            category: 'politique',
+                            context: 'Retour de la droite au pouvoir'
+                        },
+                        {
+                            year: 2012,
+                            date: '6 mai 2012',
+                            title: 'Élection de François Hollande',
+                            location: 'France',
+                            description: 'François Hollande devient président, première alternance sous le quinquennat.',
+                            category: 'politique',
+                            context: 'Retour de la gauche'
+                        },
+                        {
+                            year: 2015,
+                            date: '7-9 janvier 2015',
+                            title: 'Attentats de Charlie Hebdo',
+                            location: 'Paris, France',
+                            description: 'Attentats terroristes contre Charlie Hebdo et l\'Hyper Cacher.',
+                            category: 'politique',
+                            context: 'Vague d\'attentats en France'
+                        },
+                        {
+                            year: 2015,
+                            date: '13 novembre 2015',
+                            title: 'Attentats du 13 novembre',
+                            location: 'Paris, France',
+                            description: 'Série d\'attentats coordonnés à Paris et Saint-Denis (130 morts).',
+                            category: 'politique',
+                            context: 'État d\'urgence'
+                        },
+                        {
+                            year: 2017,
+                            date: '7 mai 2017',
+                            title: 'Élection d\'Emmanuel Macron',
+                            location: 'France',
+                            description: 'Emmanuel Macron devient le plus jeune président de la Ve République.',
+                            category: 'politique',
+                            context: 'Renouvellement politique'
+                        },
+                        {
+                            year: 2018,
+                            date: '15 juillet 2018',
+                            title: 'France championne du monde de football',
+                            location: 'Moscou, Russie',
+                            description: 'L\'équipe de France remporte sa deuxième Coupe du Monde (4-2 contre la Croatie).',
+                            category: 'sportif',
+                            context: 'Deuxième étoile'
+                        },
+                        {
+                            year: 2019,
+                            date: '15 avril 2019',
+                            title: 'Incendie de Notre-Dame',
+                            location: 'Paris, France',
+                            description: 'Un incendie dévaste la cathédrale Notre-Dame de Paris.',
+                            category: 'culturel',
+                            context: 'Émotion nationale et internationale'
+                        },
+                        {
+                            year: 2020,
+                            date: 'Mars 2020',
+                            title: 'Pandémie de COVID-19',
+                            location: 'France',
+                            description: 'Premier confinement national face à la pandémie de coronavirus.',
+                            category: 'politique',
+                            context: 'Crise sanitaire mondiale'
+                        },
+                        {
+                            year: 2022,
+                            date: '24 avril 2022',
+                            title: 'Réélection d\'Emmanuel Macron',
+                            location: 'France',
+                            description: 'Emmanuel Macron est réélu président face à Marine Le Pen.',
+                            category: 'politique',
+                            context: 'Deuxième quinquennat'
+                        },
+                        {
+                            year: 2024,
+                            date: 'Juillet-août 2024',
+                            title: 'Jeux Olympiques de Paris',
+                            location: 'Paris, France',
+                            description: 'Paris accueille les Jeux Olympiques d\'été pour la troisième fois.',
+                            category: 'sportif',
+                            context: 'Rayonnement international'
+                        }
+                    ],
+                    periods: [
+                        {
+                            title: 'Guerre contre le terrorisme',
+                            startYear: 2001,
+                            endYear: 2020,
+                            description: 'Période marquée par les attentats et la lutte antiterroriste.',
+                            category: 'politique',
+                            context: 'Sécurité et liberté'
+                        },
+                        {
+                            title: 'Crise de la COVID-19',
+                            startYear: 2020,
+                            endYear: 2022,
+                            description: 'Pandémie mondiale avec confinements et restrictions.',
+                            category: 'politique',
+                            context: 'Crise sanitaire'
+                        }
+                    ]
+                }
+            }
+        };
+
+        // ===== CONFIGURATION DES SIÈCLES PAR ÈRE =====
+        // Charger les données Google Sheets au démarrage
+        (async function initApp() {
+            await loadGoogleSheets();
+            console.log('🎉 Application prête !');
+        })();
+        
+        const CENTURIES = {
+            'antiquite': [
+                { id: '1-100', label: '1er siècle' },
+                { id: '101-200', label: '2e siècle' },
+                { id: '201-300', label: '3e siècle' },
+                { id: '301-400', label: '4e siècle' },
+                { id: '401-476', label: '5e siècle (jusqu\'à 476)' }
+            ],
+            'moyen-age': [
+                { id: '476-500', label: '5e siècle (476-500)' },
+                { id: '501-600', label: '6e siècle' },
+                { id: '601-700', label: '7e siècle' },
+                { id: '701-800', label: '8e siècle' },
+                { id: '801-900', label: '9e siècle' },
+                { id: '901-1000', label: '10e siècle' },
+                { id: '1001-1100', label: '11e siècle' },
+                { id: '1101-1200', label: '12e siècle' },
+                { id: '1201-1300', label: '13e siècle' },
+                { id: '1301-1400', label: '14e siècle' },
+                { id: '1401-1492', label: '15e siècle (jusqu\'à 1492)' }
+            ],
+            'temps-modernes': [
+                { id: '1492-1500', label: '15e siècle (1492-1500)' },
+                { id: '1501-1600', label: '16e siècle' },
+                { id: '1601-1700', label: '17e siècle' },
+                { id: '1701-1789', label: '18e siècle (jusqu\'à 1789)' }
+            ],
+            'epoque-contemporaine': [
+                { id: '1789-1800', label: '18e siècle (1789-1800)' },
+                { id: '1801-1900', label: '19e siècle' },
+                { id: '1901-2000', label: '20e siècle' },
+                { id: '2001-2025', label: '21e siècle (jusqu\'à 2025)' }
+            ]
+        };
+
+        // Variables
+        let currentEra = null;
+        let currentCentury = null;
+        let currentEvents = [];
+        let currentPeriods = [];
+        let activeFilters = ['all'];
+        let currentScrollPosition = 0;
+
+        // ===== GESTION DE LA NAVIGATION (ÈRES ET SIÈCLES) =====
+        // Gestion des ères
+        document.querySelectorAll('#era-buttons .nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentEra = btn.dataset.era;
+                
+                // Activer le bouton
+                document.querySelectorAll('#era-buttons .nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // Générer les siècles
+                const centuryContainer = document.getElementById('century-buttons');
+                centuryContainer.innerHTML = '';
+                
+                CENTURIES[currentEra].forEach(century => {
+                    const centuryBtn = document.createElement('button');
+                    centuryBtn.className = 'nav-btn';
+                    centuryBtn.textContent = century.label;
+                    centuryBtn.dataset.century = century.id;
+                    
+                    centuryBtn.addEventListener('click', () => {
+                        currentCentury = century.id;
+                        
+                        document.querySelectorAll('#century-buttons .nav-btn').forEach(b => b.classList.remove('active'));
+                        centuryBtn.classList.add('active');
+                        
+                        showTimeline();
+                    });
+                    
+                    centuryContainer.appendChild(centuryBtn);
+                });
+                
+                hideTimeline();
+            });
+        });
+
+        function hideTimeline() {
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('cards-zone').classList.add('hidden');
+            document.getElementById('timeline-container').classList.add('hidden');
+            document.getElementById('periods-zone').classList.add('hidden');
+        }
+
+        function showTimeline() {
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('cards-zone').classList.remove('hidden');
+            document.getElementById('timeline-container').classList.remove('hidden');
+            document.getElementById('periods-zone').classList.remove('hidden');
+
+            const data = DATA[currentEra] && DATA[currentEra][currentCentury] 
+                ? DATA[currentEra][currentCentury] 
+                : { events: [], periods: [] };
+            
+            currentEvents = data.events;
+            currentPeriods = data.periods;
+
+            renderTimeline();
+        }
+
+        function renderTimeline() {
+            const [startYear, endYear] = currentCentury.split('-').map(Number);
+            const timelineTrack = document.getElementById('timeline-track');
+            const periodsTrack = document.getElementById('periods-track');
+            const cardsTrack = document.getElementById('cards-track');
+            
+            timelineTrack.innerHTML = '<div class="timeline-line"></div>';
+            periodsTrack.innerHTML = '';
+            cardsTrack.innerHTML = '';
+
+            const yearRange = endYear - startYear + 1;
+            const pixelsPerYear = 50;
+            const totalWidth = yearRange * pixelsPerYear;
+            const viewportWidth = document.getElementById('timeline-scroll').clientWidth;
+            const padding = viewportWidth / 2;
+
+            timelineTrack.style.width = (totalWidth + padding * 2) + 'px';
+            periodsTrack.style.width = (totalWidth + padding * 2) + 'px';
+            cardsTrack.style.width = (totalWidth + padding * 2) + 'px';
+
+            const filteredEvents = currentEvents.filter(event => {
+                if (activeFilters.includes('all')) return true;
+                return activeFilters.includes(event.category);
+            });
+
+            if (filteredEvents.length === 0) {
+                cardsTrack.innerHTML = `
+                    <div class="event-card" style="left: ${padding}px;">
+                        <h2 class="event-card-title">Période sans données</h2>
+                        <div class="event-card-description">
+                            Aucun événement n'a encore été ajouté pour cette période.
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Créer les cartes ET les points à la même position
+            filteredEvents.forEach(event => {
+                const position = padding + (event.year - startYear) * pixelsPerYear;
+                
+                // Carte (240px de large, donc décalage de 120px pour centrer)
+                const card = document.createElement('div');
+                card.className = `event-card ${event.category}`;
+                card.style.left = (position - 120) + 'px';
+                card.innerHTML = `
+                    <div class="event-card-front">
+                        <div class="event-card-year">${event.year}</div>
+                        <div class="event-card-date">${event.date}</div>
+                        <h2 class="event-card-title">${event.title}</h2>
+                        <div class="event-card-location">${event.location}</div>
+                        <div class="event-card-description">${event.description}</div>
+                        <div class="event-card-category">${event.category}</div>
+                        ${event.context ? '<div class="event-card-flip-hint">🔄 Cliquer pour le contexte</div>' : ''}
+                    </div>
+                    ${event.context ? `
+                        <div class="event-card-back">
+                            <div class="event-card-back-title">${event.title}</div>
+                            <div class="event-card-back-context">${event.context}</div>
+                            <a href="${event.chatgpt_link || 'https://chat.openai.com/?q=' + encodeURIComponent('Parle-moi de : ' + event.title + ' (' + event.year + ')')}" 
+                               target="_blank" 
+                               class="event-card-chatgpt-link"
+                               onclick="event.stopPropagation()">
+                                💬 Approfondir
+                            </a>
+                            <div class="event-card-flip-hint">🔄 Cliquer pour revenir</div>
+                        </div>
+                    ` : ''}
+                `;
+                
+                // Au clic : retourner la carte ET la faire passer au premier plan
+                card.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Retourner la carte
+                    card.classList.toggle('flipped');
+                    
+                    // Réinitialiser le z-index de toutes les cartes
+                    document.querySelectorAll('.event-card').forEach(c => {
+                        c.style.zIndex = '100';
+                    });
+                    
+                    // Mettre cette carte au premier plan
+                    card.style.zIndex = '200';
+                });
+                
+                cardsTrack.appendChild(card);
+
+                // Point sur la frise
+                const point = document.createElement('div');
+                point.className = `timeline-point ${event.category}`;
+                point.style.left = position + 'px';
+                
+                // Au clic sur un point, faire passer sa carte au premier plan
+                point.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Réinitialiser le z-index de toutes les cartes
+                    document.querySelectorAll('.event-card').forEach(c => {
+                        c.style.zIndex = '100';
+                    });
+                    
+                    // Mettre la carte correspondante au premier plan
+                    card.style.zIndex = '200';
+                });
+                
+                timelineTrack.appendChild(point);
+            });
+
+            // Périodes - Algorithme anti-chevauchement (4 lignes disponibles)
+            const periodLanes = [[], [], [], []]; // 4 lignes
+            
+            currentPeriods.forEach((period, index) => {
+                const bar = document.createElement('div');
+                bar.className = `period-bar ${period.category}`;
+                
+                const startPos = padding + (period.startYear - startYear) * pixelsPerYear;
+                const width = (period.endYear - period.startYear) * pixelsPerYear;
+                const endPos = startPos + width;
+                
+                // Trouver la première ligne libre (sans chevauchement)
+                let lane = 0;
+                for (let i = 0; i < periodLanes.length; i++) {
+                    let canFit = true;
+                    for (const existing of periodLanes[i]) {
+                        // Chevauchement si NOT (A termine avant B commence OU A commence après B termine)
+                        if (!(endPos < existing.startPos || startPos > existing.endPos)) {
+                            canFit = false;
+                            break;
+                        }
+                    }
+                    if (canFit) {
+                        lane = i;
+                        break;
+                    }
+                }
+                
+                // Enregistrer cette période dans sa ligne
+                periodLanes[lane].push({ startPos, endPos });
+                
+                bar.style.left = startPos + 'px';
+                bar.style.width = width + 'px';
+                bar.style.top = (lane * 70) + 'px'; // 0px, 70px, 140px ou 210px selon la ligne
+                
+                const duration = period.endYear - period.startYear + 1;
+                
+                bar.innerHTML = `
+                    <span class="period-title">${period.title}</span>
+                    <div class="period-info ${period.category}">
+                        <div class="period-info-front">
+                            <div class="period-info-header">
+                                <div style="flex: 1;">
+                                    <div class="period-info-title">${period.title}</div>
+                                    <div class="period-info-duration">${duration} ans (${period.startYear} – ${period.endYear})</div>
+                                </div>
+                                <div class="period-info-dates">${period.startYear} – ${period.endYear}</div>
+                            </div>
+                            <div class="period-info-description">${period.description}</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.8rem;">
+                                <div class="period-info-category">${period.category}</div>
+                                ${period.context ? '<div class="period-info-flip-hint">🔄 Cliquer pour le contexte</div>' : ''}
+                            </div>
+                        </div>
+                        ${period.context ? `
+                            <div class="period-info-back">
+                                <div class="period-info-back-title">${period.title}</div>
+                                <div class="period-info-back-context">${period.context}</div>
+                                <a href="${period.chatgpt_link || 'https://chat.openai.com/?q=' + encodeURIComponent('Parle-moi de : ' + period.title + ' (' + period.startYear + '-' + period.endYear + ')')}" 
+                                   target="_blank" 
+                                   class="period-info-chatgpt-link"
+                                   onclick="event.stopPropagation()">
+                                    💬 Approfondir
+                                </a>
+                                <div class="period-info-flip-hint">🔄 Cliquer pour revenir</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                bar.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    
+                    // Si la barre est déjà active, on la désactive
+                    if (bar.classList.contains('active')) {
+                        bar.classList.remove('active');
+                        // Remettre la popup en recto
+                        const periodInfo = bar.querySelector('.period-info');
+                        if (periodInfo) periodInfo.classList.remove('flipped');
+                    } else {
+                        // Sinon on désactive toutes les autres et on active celle-ci
+                        document.querySelectorAll('.period-bar').forEach(b => {
+                            b.classList.remove('active');
+                            const info = b.querySelector('.period-info');
+                            if (info) info.classList.remove('flipped');
+                        });
+                        bar.classList.add('active');
+                        
+                        // Positionner la popup là où on a cliqué
+                        const periodInfo = bar.querySelector('.period-info');
+                        const barRect = bar.getBoundingClientRect();
+                        const clickX = e.clientX - barRect.left;
+                        const clickPercent = (clickX / barRect.width) * 100;
+                        periodInfo.style.left = clickPercent + '%';
+                        
+                        // Ajouter le clic sur la popup pour la retourner
+                        setTimeout(() => {
+                            periodInfo.addEventListener('click', (evt) => {
+                                evt.stopPropagation();
+                                periodInfo.classList.toggle('flipped');
+                            }, { once: false });
+                        }, 100);
+                    }
+                });
+
+                periodsTrack.appendChild(bar);
+            });
+
+            // Ajouter un écouteur sur le document pour fermer les encarts au clic ailleurs
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.period-bar').forEach(b => b.classList.remove('active'));
+            });
+
+            // Ajouter des tirets et années pour chaque année
+            for (let year = startYear; year <= endYear; year++) {
+                const tickPosition = padding + (year - startYear) * pixelsPerYear;
+                
+                // Tiret de graduation
+                const tick = document.createElement('div');
+                tick.style.position = 'absolute';
+                tick.style.left = tickPosition + 'px';
+                tick.style.top = 'calc(50% - 15px)';
+                tick.style.width = '1px';
+                tick.style.height = '10px';
+                tick.style.background = 'var(--text-muted)';
+                tick.style.opacity = '0.3';
+                timelineTrack.appendChild(tick);
+                
+                // Label année au-dessus du tiret
+                const yearLabel = document.createElement('div');
+                yearLabel.style.position = 'absolute';
+                yearLabel.style.left = tickPosition + 'px';
+                yearLabel.style.top = 'calc(50% - 30px)';
+                yearLabel.style.transform = 'translateX(-50%)';
+                yearLabel.style.fontFamily = "'Space Mono', monospace";
+                yearLabel.style.fontSize = '0.65rem';
+                yearLabel.style.color = 'var(--text-muted)';
+                yearLabel.style.opacity = '0.5';
+                yearLabel.style.whiteSpace = 'nowrap';
+                yearLabel.textContent = year;
+                timelineTrack.appendChild(yearLabel);
+            }
+
+            currentScrollPosition = 0;
+            updateTimelinePosition();
+        }
+
+        function updateTimelinePosition() {
+            document.getElementById('timeline-track').style.transform = `translateX(${currentScrollPosition}px)`;
+            document.getElementById('periods-track').style.transform = `translateX(${currentScrollPosition}px)`;
+            document.getElementById('cards-track').style.transform = `translateX(${currentScrollPosition}px)`;
+        }
+
+        // Scroll horizontal avec inertie pour fluidité
+        const timelineContainer = document.getElementById('timeline-container');
+        let scrollVelocity = 0;
+        let isScrolling = false;
+        
+        function handleScroll(e) {
+            if (!currentCentury) return;
+            
+            e.preventDefault();
+            
+            // Détecter si c'est un scroll horizontal (shift + molette ou trackpad)
+            const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+            
+            // Réduire sensibilité pour plus de fluidité
+            scrollVelocity = delta * 0.8;
+            
+            if (!isScrolling) {
+                isScrolling = true;
+                smoothScroll();
+            }
+        }
+        
+        function smoothScroll() {
+            if (Math.abs(scrollVelocity) > 0.1) {
+                currentScrollPosition -= scrollVelocity;
+                scrollVelocity *= 0.85; // Décélération progressive (inertie)
+                updateTimelinePosition();
+                requestAnimationFrame(smoothScroll);
+            } else {
+                isScrolling = false;
+                scrollVelocity = 0;
+            }
+        }
+        
+        timelineContainer.addEventListener('wheel', handleScroll, { passive: false });
+        document.getElementById('cards-zone').addEventListener('wheel', handleScroll, { passive: false });
+        document.getElementById('periods-zone').addEventListener('wheel', handleScroll, { passive: false });
+
+        // Filtres
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                
+                if (category === 'all') {
+                    activeFilters = ['all'];
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                } else {
+                    document.querySelector('.filter-btn[data-category="all"]').classList.remove('active');
+                    activeFilters = activeFilters.filter(f => f !== 'all');
+                    
+                    if (activeFilters.includes(category)) {
+                        activeFilters = activeFilters.filter(f => f !== category);
+                        btn.classList.remove('active');
+                    } else {
+                        activeFilters.push(category);
+                        btn.classList.add('active');
+                    }
+                    
+                    if (activeFilters.length === 0) {
+                        activeFilters = ['all'];
+                        document.querySelector('.filter-btn[data-category="all"]').classList.add('active');
+                    }
+                }
+
+                if (currentCentury) renderTimeline();
+            });
+        });
+    </script>
+
+</body>
+</html>
